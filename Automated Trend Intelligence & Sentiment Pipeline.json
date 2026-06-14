@@ -1,0 +1,304 @@
+{
+  "name": "Automated Trend Intelligence & Sentiment Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://trends.google.com/trending/rss?geo=US",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -608,
+        208
+      ],
+      "id": "b7a7547e-8cfc-4050-a459-7974e7a5a47b",
+      "name": "Fetch Trends"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        208
+      ],
+      "id": "e919bfbf-6f4c-42a4-bf23-9fdd70012533",
+      "name": "XML"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "rss.channel.item",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        208
+      ],
+      "id": "cc83f3eb-327e-4061-ae5b-676da72e4624",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the following topic and return the result EXACTLY as a JSON object. Do not include any markdown formatting, backticks, or \"```json\". Just pure JSON text.\n\nTopic Title: {{ $json.title }}\nTopic Description: {{ $json.description }}\n\nRequired JSON format:\n{\n  \"sentiment\": \"Choose ONLY from [Positive, Negative, Neutral]\",\n  \"category\": \"Choose standard category (e.g., Tech, Sports, Politics)\",\n  \"summary\": \"One-sentence summary\"\n}",
+        "messages": {
+          "messageValues": []
+        },
+        "batching": {
+          "batchSize": 1,
+          "delayBetweenBatches": 2000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        176,
+        208
+      ],
+      "id": "852f44b0-4a97-450c-aa14-3d6ec23b8ef7",
+      "name": "Basic LLM Chain",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  try {\n    // هنا نأخذ النص الخارج من جوميني ونحوله إلى JSON حقيقي\n    const parsedData = JSON.parse(item.json.text); \n    \n    // ندمج البيانات الجديدة داخل الـ item نفسه\n    item.json.sentiment = parsedData.sentiment;\n    item.json.category = parsedData.category;\n    item.json.summary = parsedData.summary;\n  } catch (error) {\n    item.json.error = \"Failed to parse JSON: \" + error.message;\n  }\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        208
+      ],
+      "id": "429cc572-d388-4054-abe9-9ad1dfbdf691",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "amount": 13
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -32,
+        208
+      ],
+      "id": "52db0a13-27a3-47ec-b37b-9d60bd0eb5d3",
+      "name": "Wait",
+      "webhookId": "778a8330-1b15-40c5-a97c-2320540d9e04"
+    },
+    {
+      "parameters": {
+        "tableId": "=trending_topics",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "trend_name",
+              "fieldValue": "={{ $node[\"Split Out\"].json.title }}"
+            },
+            {
+              "fieldId": "sentiment",
+              "fieldValue": "={{ $json.sentiment }}"
+            },
+            {
+              "fieldId": "category",
+              "fieldValue": "={{ $json.category }}"
+            },
+            {
+              "fieldId": "summary",
+              "fieldValue": "={{ $json.summary }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        720,
+        208
+      ],
+      "id": "342c44b0-90f7-4b6c-9388-0b4480ffd25c",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "bu53iHIW3dsBHDf5",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama-3.1-8b-instant",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        112,
+        416
+      ],
+      "id": "f6b017cd-6a91-46f8-a785-d5377ae65ac8",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "T37awRC87DZBSsi2",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "2101175121",
+        "text": "={{ `🚨 تحديث تريند جديد تم رصده! 🚨\n\n📌 اسم التريند: ${$json.trend_name || 'غير معروف'}\n🧠 التحليل النفسي: ${$json.sentiment || 'غير معروف'}\n📁 المجال: ${$json.category || 'غير معروف'}\n📝 الملخص التنفيذي: ${$json.summary || 'لا يوجد ملخص'}\n\n✅ تم التخزين بنجاح في قاعدة البيانات.` }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        928,
+        208
+      ],
+      "id": "2a7be528-949f-416e-a3ea-74b17de106bf",
+      "name": "Send a text message",
+      "webhookId": "19972024-b847-4538-ae22-36a5f05a1e55",
+      "credentials": {
+        "telegramApi": {
+          "id": "aUVPcjJrLwLTTT89",
+          "name": "Telegram account 3"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -864,
+        224
+      ],
+      "id": "d9527fa2-6172-4447-b888-9dedacb2cce4",
+      "name": "When clicking ‘Execute workflow’"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Fetch Trends": {
+      "main": [
+        [
+          {
+            "node": "XML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "XML": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Fetch Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "0b77e837-1139-469e-83b6-af68b69105a9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "695441af4fb619c31ebfa312158314ca73539c662872891517c356f3082b4a66"
+  },
+  "id": "8P0moQyvElNQexbh",
+  "tags": []
+}
