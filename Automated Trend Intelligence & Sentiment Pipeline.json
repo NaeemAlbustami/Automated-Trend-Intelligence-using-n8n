@@ -9,7 +9,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -608,
+        -576,
         208
       ],
       "id": "b7a7547e-8cfc-4050-a459-7974e7a5a47b",
@@ -22,7 +22,7 @@
       "type": "n8n-nodes-base.xml",
       "typeVersion": 1,
       "position": [
-        -400,
+        -320,
         208
       ],
       "id": "e919bfbf-6f4c-42a4-bf23-9fdd70012533",
@@ -36,7 +36,7 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        -192,
+        -48,
         208
       ],
       "id": "cc83f3eb-327e-4061-ae5b-676da72e4624",
@@ -67,7 +67,7 @@
     },
     {
       "parameters": {
-        "jsCode": "for (const item of $input.all()) {\n  try {\n    // هنا نأخذ النص الخارج من جوميني ونحوله إلى JSON حقيقي\n    const parsedData = JSON.parse(item.json.text); \n    \n    // ندمج البيانات الجديدة داخل الـ item نفسه\n    item.json.sentiment = parsedData.sentiment;\n    item.json.category = parsedData.category;\n    item.json.summary = parsedData.summary;\n  } catch (error) {\n    item.json.error = \"Failed to parse JSON: \" + error.message;\n  }\n}\n\nreturn $input.all();"
+        "jsCode": "const items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  try {\n    let rawText = item.json.text.trim();\n    \n    // تنظيف المخرجات في حال تضمنت علامات الماركداون بشكل خاطئ من النموذج\n    if (rawText.startsWith(\"```json\")) {\n      rawText = rawText.replace(/^```json/, \"\").replace(/```$/, \"\").trim();\n    } else if (rawText.startsWith(\"```\")) {\n      rawText = rawText.replace(/^```/, \"\").replace(/```$/, \"\").trim();\n    }\n    \n    const parsedData = JSON.parse(rawText); \n    \n    item.json.sentiment = parsedData.sentiment;\n    item.json.category = parsedData.category;\n    item.json.summary = parsedData.summary;\n  } catch (error) {\n    item.json.error = \"Failed to parse JSON: \" + error.message;\n    item.json.sentiment = \"Neutral\";\n    item.json.category = \"Unknown\";\n    item.json.summary = \"حدث خطأ أثناء معالجة الملخص من قبل النموذج.\";\n  }\n  \n  // جلب اسم التريند المقابل بالتفصيل من عقدة الـ Split Out لضمان تزامن دقيق\n  try {\n    item.json.title = $('Split Out').itemMatching(i).json.title;\n  } catch (e) {\n    item.json.title = \"تريند غير معروف\";\n  }\n}\n\nreturn items;\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -80,26 +80,12 @@
     },
     {
       "parameters": {
-        "amount": 13
-      },
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [
-        -32,
-        208
-      ],
-      "id": "52db0a13-27a3-47ec-b37b-9d60bd0eb5d3",
-      "name": "Wait",
-      "webhookId": "778a8330-1b15-40c5-a97c-2320540d9e04"
-    },
-    {
-      "parameters": {
         "tableId": "=trending_topics",
         "fieldsUi": {
           "fieldValues": [
             {
               "fieldId": "trend_name",
-              "fieldValue": "={{ $node[\"Split Out\"].json.title }}"
+              "fieldValue": "={{ $json.title }}"
             },
             {
               "fieldId": "sentiment",
@@ -154,7 +140,7 @@
     {
       "parameters": {
         "chatId": "2101175121",
-        "text": "={{ `🚨 تحديث تريند جديد تم رصده! 🚨\n\n📌 اسم التريند: ${$json.trend_name || 'غير معروف'}\n🧠 التحليل النفسي: ${$json.sentiment || 'غير معروف'}\n📁 المجال: ${$json.category || 'غير معروف'}\n📝 الملخص التنفيذي: ${$json.summary || 'لا يوجد ملخص'}\n\n✅ تم التخزين بنجاح في قاعدة البيانات.` }}",
+        "text": "=🚨 تحديث تريند جديد تم رصده! 🚨\n\n📌 اسم التريند: {{ $json.trend_name || $json.title || 'غير معروف' }}\n🧠 التحليل النفسي: {{ $json.sentiment || 'غير معروف' }}\n📁 المجال: {{ $json.category || 'غير معروف' }}\n📝 الملخص التنفيذي: {{ $json.summary || 'لا يوجد ملخص' }}\n\n✅ تم التخزين بنجاح في قاعدة البيانات.\n",
         "additionalFields": {
           "appendAttribution": false
         }
@@ -176,15 +162,23 @@
       }
     },
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 13
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
       "position": [
-        -864,
-        224
+        -816,
+        208
       ],
-      "id": "d9527fa2-6172-4447-b888-9dedacb2cce4",
-      "name": "When clicking ‘Execute workflow’"
+      "id": "5b9393f1-9b49-4e2c-a6b6-45b17dec282f",
+      "name": "Schedule Trigger"
     }
   ],
   "pinData": {},
@@ -215,7 +209,7 @@
       "main": [
         [
           {
-            "node": "Wait",
+            "node": "Basic LLM Chain",
             "type": "main",
             "index": 0
           }
@@ -244,17 +238,6 @@
         ]
       ]
     },
-    "Wait": {
-      "main": [
-        [
-          {
-            "node": "Basic LLM Chain",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Create a row": {
       "main": [
         [
@@ -277,7 +260,7 @@
         ]
       ]
     },
-    "When clicking ‘Execute workflow’": {
+    "Schedule Trigger": {
       "main": [
         [
           {
@@ -294,7 +277,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "0b77e837-1139-469e-83b6-af68b69105a9",
+  "versionId": "eb10c8a0-1096-4ab9-b121-746d05f78759",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "695441af4fb619c31ebfa312158314ca73539c662872891517c356f3082b4a66"
