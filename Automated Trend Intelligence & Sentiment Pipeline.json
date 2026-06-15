@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "url": "https://trends.google.com/trending/rss?geo=US",
+        "url": "https://trends.google.com/trending/rss?geo=GLOBAL",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -45,7 +45,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Analyze the following topic and return the result EXACTLY as a JSON object. Do not include any markdown formatting, backticks, or \"```json\". Just pure JSON text.\n\nTopic Title: {{ $json.title }}\nTopic Description: {{ $json.description }}\n\nRequired JSON format:\n{\n  \"sentiment\": \"Choose ONLY from [Positive, Negative, Neutral]\",\n  \"category\": \"Choose standard category (e.g., Tech, Sports, Politics)\",\n  \"summary\": \"One-sentence summary\"\n}",
+        "text": "=Analyze the following internet trend topic. Your goal is to identify the ACTUAL RECENT EVENT or NEWS TRIGGER that caused this topic to trend right now (e.g., a specific match played yesterday, a new transfer rumor, an injury, a product launch, or a viral breaking news event). \n\nDo not just provide a generic encyclopedia definition of the person or entity. Focus entirely on the \"What just happened?\" aspect.\n\nTopic Title: {{ $json.title }}\nTopic Description: {{ $json.description }}\n\nRequired JSON format (Return ONLY pure JSON text, no markdown, no backticks):\n{\n  \"sentiment\": \"Choose ONLY from [Positive, Negative, Neutral]\",\n  \"category\": \"Choose standard category (e.g., Tech, Sports, Politics, Entertainment, Culture)\",\n  \"summary\": \"Provide a sharp, one-sentence summary explaining the exact, recent real-world event or news that caused this topic to trend today.\"\n}",
         "messages": {
           "messageValues": []
         },
@@ -277,7 +277,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "eb10c8a0-1096-4ab9-b121-746d05f78759",
+  "versionId": "08c20380-b438-4844-b2ae-f14992cb07a3",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "695441af4fb619c31ebfa312158314ca73539c662872891517c356f3082b4a66"
